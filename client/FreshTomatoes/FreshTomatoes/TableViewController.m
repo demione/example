@@ -7,8 +7,15 @@
 //
 
 #import "TableViewController.h"
+#import "DetailViewController.h"
+#import "MovieTableViewCell.h"
+#import "Movie.h"
+#import "UIImageView+AFNetworking.h"
 
 @interface TableViewController ()
+
+@property (nonatomic) NSMutableArray<Movie *> *movies;
+@property (nonatomic) NSArray *searchResults;
 
 @end
 
@@ -16,12 +23,58 @@
 
 - (void)viewDidLoad {
     [super viewDidLoad];
+    self.title = @"Fresh Tomatoes";
+
+    [self downloadMoviesJson];
     
     // Uncomment the following line to preserve selection between presentations.
     // self.clearsSelectionOnViewWillAppear = NO;
     
     // Uncomment the following line to display an Edit button in the navigation bar for this view controller.
     // self.navigationItem.rightBarButtonItem = self.editButtonItem;
+}
+
+- (void) downloadMoviesJson {
+    NSMutableURLRequest *request =
+    [NSMutableURLRequest requestWithURL:[NSURL
+                                         URLWithString:@"http://localhost:8080/movies"]
+                            cachePolicy:NSURLRequestReloadIgnoringLocalAndRemoteCacheData
+                        timeoutInterval:10
+     ];
+    
+    [request setHTTPMethod: @"GET"];
+    
+    NSURLSession *session = [NSURLSession sessionWithConfiguration:[NSURLSessionConfiguration defaultSessionConfiguration]];
+    
+    [[session dataTaskWithRequest:request
+                completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+                    
+                    if (data && error == nil) {
+                        NSArray *jsonData = [NSJSONSerialization
+                                                  JSONObjectWithData:data
+                                                  options:NSJSONReadingMutableContainers
+                                                  error:&error];
+                        
+                        [self performSelectorOnMainThread:@selector(loadJsonData:) withObject:jsonData waitUntilDone:NO];
+                    }
+                    
+                }] resume];
+}
+
+- (void) loadJsonData: (id) obj {
+    if (obj) {
+        NSArray *jsonData = (NSArray *)obj;
+        self.movies = [[NSMutableArray alloc] initWithCapacity:jsonData.count];
+        for (NSDictionary *movieDict in jsonData) {
+            Movie *movie = [[Movie alloc] init];
+            movie.name = movieDict[@"movie_name"];
+            movie.thumbnailURL = movieDict[@"image_url"];
+            movie.rating = [movieDict[@"rating"] floatValue];
+            movie.movieDescription = movieDict[@"description"];
+            [self.movies addObject:movie];
+        }
+        [self.tableView reloadData];
+    }
 }
 
 - (void)didReceiveMemoryWarning {
@@ -32,67 +85,87 @@
 #pragma mark - Table view data source
 
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView {
-#warning Incomplete implementation, return the number of sections
-    return 0;
+    return 1;
 }
 
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
-#warning Incomplete implementation, return the number of rows
-    return 0;
+    if (self.searchResults.count) {
+        return [self.searchResults count];
+        
+    } else {
+        return (self.movies ? self.movies.count : 0);
+    }
 }
 
-/*
-- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
-    UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:<#@"reuseIdentifier"#> forIndexPath:indexPath];
+-(void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    [self performSegueWithIdentifier:@"detailSegue" sender:self];
+}
+
+- (void)prepareForSegue:(UIStoryboardSegue *)segue sender:(id)sender
+{
+    if ([[segue identifier] isEqualToString:@"detailSegue"])
+    {
+        NSIndexPath *indexPath = [self.tableView indexPathForSelectedRow];
+        if (indexPath) {
+            if (segue.destinationViewController) {
+                DetailViewController *detailController = (DetailViewController *)segue.destinationViewController;
+                detailController.movie = [self.movies objectAtIndex:indexPath.row];
+            }
+        }
+    }
+}
+
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    static NSString *movieTableIdentifier = @"MovieTableItem";
     
-    // Configure the cell...
+    MovieTableViewCell *cell = [self.tableView dequeueReusableCellWithIdentifier:movieTableIdentifier];
+    
+    if (cell == nil) {
+        NSArray *nib = [[NSBundle mainBundle] loadNibNamed:@"MovieTableViewCell" owner:self options:nil];
+        cell = [nib objectAtIndex:0];
+    }
+    
+    Movie *movie = nil;
+    if (self.searchResults && indexPath.row < self.searchResults.count) {
+        movie = [self.searchResults objectAtIndex:indexPath.row];
+    } else {
+        movie = [self.movies objectAtIndex:indexPath.row];
+    }
+    
+    [cell.thumbnailImageView setImageWithURL:[NSURL URLWithString:movie.thumbnailURL] placeholderImage:[UIImage imageNamed:@"placeholder.png"]];
+    cell.nameLabel.text = movie.name;
+    cell.ratingLabel.text = [NSString stringWithFormat:@"Rating: %.01f/5 stars", movie.rating];
+    cell.descriptionLabel.text = movie.movieDescription;
     
     return cell;
 }
-*/
 
-/*
-// Override to support conditional editing of the table view.
-- (BOOL)tableView:(UITableView *)tableView canEditRowAtIndexPath:(NSIndexPath *)indexPath {
-    // Return NO if you do not want the specified item to be editable.
+- (CGFloat)tableView:(UITableView *)tableView heightForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    return 78.;
+}
+
+- (void)filterContentForSearchText:(NSString*)searchText scope:(NSString*)scope
+{
+    NSPredicate *resultPredicate = [NSPredicate
+                                    predicateWithFormat:@"name contains[cd] %@",
+                                    searchText];
+    
+    if (self.movies) {
+        self.searchResults = [self.movies filteredArrayUsingPredicate:resultPredicate];
+    }
+}
+
+-(BOOL)searchDisplayController:(UISearchController *)controller shouldReloadTableForSearchString:(NSString *)searchString
+{
+    [self filterContentForSearchText:searchString
+                               scope:[[self.searchBar scopeButtonTitles]
+                                      objectAtIndex:[controller.searchBar
+                                                     selectedScopeButtonIndex]]];
+    
     return YES;
 }
-*/
-
-/*
-// Override to support editing the table view.
-- (void)tableView:(UITableView *)tableView commitEditingStyle:(UITableViewCellEditingStyle)editingStyle forRowAtIndexPath:(NSIndexPath *)indexPath {
-    if (editingStyle == UITableViewCellEditingStyleDelete) {
-        // Delete the row from the data source
-        [tableView deleteRowsAtIndexPaths:@[indexPath] withRowAnimation:UITableViewRowAnimationFade];
-    } else if (editingStyle == UITableViewCellEditingStyleInsert) {
-        // Create a new instance of the appropriate class, insert it into the array, and add a new row to the table view
-    }   
-}
-*/
-
-/*
-// Override to support rearranging the table view.
-- (void)tableView:(UITableView *)tableView moveRowAtIndexPath:(NSIndexPath *)fromIndexPath toIndexPath:(NSIndexPath *)toIndexPath {
-}
-*/
-
-/*
-// Override to support conditional rearranging of the table view.
-- (BOOL)tableView:(UITableView *)tableView canMoveRowAtIndexPath:(NSIndexPath *)indexPath {
-    // Return NO if you do not want the item to be re-orderable.
-    return YES;
-}
-*/
-
-/*
-#pragma mark - Navigation
-
-// In a storyboard-based application, you will often want to do a little preparation before navigation
-- (void)prepareForSegue:(UIStoryboardSegue *)segue sender:(id)sender {
-    // Get the new view controller using [segue destinationViewController].
-    // Pass the selected object to the new view controller.
-}
-*/
 
 @end

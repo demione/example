@@ -1,0 +1,1 @@
+{"image_url": "example_image.png", "movie_name": "example movie", "description": "description", "rating": "5.0"}

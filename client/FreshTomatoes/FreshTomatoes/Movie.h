@@ -10,4 +10,9 @@
 
 @interface Movie : NSObject
 
+@property (nonatomic) NSString  *name;
+@property (nonatomic) NSString  *thumbnailURL;
+@property (nonatomic) float     rating;
+@property (nonatomic) NSString  *movieDescription;
+
 @end

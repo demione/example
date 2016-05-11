@@ -10,4 +10,9 @@
 
 @implementation Movie
 
+- (NSString*) description
+{
+    return [NSString stringWithFormat:@"<%@: %p: name=%@>", [self class], self, _name];
+}
+
 @end

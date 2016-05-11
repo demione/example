@@ -10,4 +10,7 @@
 
 @interface TableViewController : UITableViewController
 
+@property (nonatomic, weak) IBOutlet UISearchController *searchController;
+@property (nonatomic, weak) IBOutlet UISearchBar *searchBar;
+
 @end

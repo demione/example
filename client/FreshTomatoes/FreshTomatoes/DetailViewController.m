@@ -7,6 +7,7 @@
 //
 
 #import "DetailViewController.h"
+#import "UIImageView+AFNetworking.h"
 
 @interface DetailViewController ()
 
@@ -16,7 +17,13 @@
 
 - (void)viewDidLoad {
     [super viewDidLoad];
-    // Do any additional setup after loading the view.
+    if (self.movie) {
+        self.title = self.movie.name;
+        [self.thumbnailImageView setImageWithURL:[NSURL URLWithString:self.movie.thumbnailURL] placeholderImage:[UIImage imageNamed:@"placeholder.png"]];
+        self.nameLabel.text = self.movie.name;
+        self.ratingLabel.text = [NSString stringWithFormat:@"Rating: %.01f/5 stars", self.movie.rating];
+        self.descriptionLabel.text = self.movie.movieDescription;
+    }
 }
 
 - (void)didReceiveMemoryWarning {
